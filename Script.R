@@ -89,7 +89,7 @@ make_seurat_object_and_doublet_removal <- function(data_directory, project_name,
   # filter everything to 400 unique genes/cell
   currentSample <- subset(currentSample,
                           subset = nFeature_RNA > 300 &
-                            nFeature_RNA < 5000 &
+                            nFeature_RNA < 7000 &
                             nCount_RNA > 500 &
                             percent.mt < 5 &
                             percent.ery < 0.5)
@@ -164,57 +164,7 @@ View(markers %>%
        group_by(cluster) %>%
        slice_max(n = 20, order_by = avg_log2FC))
 
-scRNA_harmony <- RenameIdents(scRNA_harmony,
-                              "0" = "T_cells_NK",
-                              "11" = "T_cells_NK",
-                              "12" = "T_cells_NK",
-                              "13" = "T_cells_NK",
-                              "8" = "B_cells",
-                              "5" = "Macrophages/Monocytes",
-                              "6" = "Macrophages/Monocytes",
-                              "10" = "Proliferating/cycling_Neutrophils",
-                              "2" = "Neutrophils",
-                              "3" = "Neutrophils",
-                              "1" = "Endothelial_tumor",
-                              "4" = "Endothelial_normal",
-                              "7" = "Hepatocytes_tumor",
-                              "9" = "Hepatocytes_tumor")
-DimPlot(scRNA_harmony, label = F)
-scRNA_harmony@meta.data$celltype.1=scRNA_harmony@active.ident
-colnames(scRNA_harmony@meta.data)
-Idents(scRNA_harmony)="orig.ident"
-Idents(scRNA_harmony)="seurat_clusters"
-saveRDS(scRNA_harmony, file = "/media/desk/scRNA_annotated.rds")
 
-beautiful_plot <- DimPlot(scRNA_harmony, 
-                          label = FALSE,
-                          pt.size = 0.8,           
-                          alpha = 0.7,             
-                          reduction = "umap",
-                          group.by = "celltype.4"  ) +
-  scale_color_manual(
-    values = c(
-      "T_cells_NK" = "#D45A5A",       
-      "B_cells" = "#E8A8A8",            
-      "Macrophages/Monocytes" = "#F2C899", 
-      "Neutrophils" = "#F9E0C7",       
-      "Proliferating/cycling_Neutrophils" = "#F0C060",  
-      "Endothelial_tumor" = "#7BB9E0",  
-      "Endothelial_normal" = "#A3D0F0", 
-      "Hepatocytes_tumor" = "#D2B48C"    ) ) +
-  labs(
-    x = "UMAP 1", 
-    y = "UMAP 2"  ) +
-  theme(
-    axis.text = element_blank(),        
-    axis.ticks = element_blank(),       
-    axis.line = element_blank(),        
-    legend.position = "right",
-    legend.key = element_blank(),
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5)
-  ) +
-  guides(color = guide_legend(override.aes = list(size = 4, alpha = 1)))
-print(beautiful_plot)
 
 #3.Cell Proportion
 
@@ -348,29 +298,6 @@ Idents(scRNA_harmony) <- "group.1"
 
 exp_data <- FetchData(scRNA_harmony, vars = c("Cgas", "group.1"))
 colnames(exp_data) <- c("expression", "group")
-
-ggplot_vln <- ggplot(exp_data, aes(x = group, y = expression, fill = group)) +
-  geom_violin(trim = TRUE, scale = "width", alpha = 0.7) +
-  geom_boxplot(width = 0.2, fill = "white", alpha = 0.8, outlier.shape = NA) +
-  geom_jitter(width = 0.1, size = 0.5, alpha = 0.3, color = "black") +  # Add jitter points
-  scale_fill_manual(values = c("#1f77b4", "#ff7f0e", "#2ca02c")) +
-  labs(title = "Cgas Expression Differences", 
-       x = "Experimental Group", 
-       y = "Expression Level") +
-  theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
-        legend.position = "none",
-        axis.text = element_text(size = 12))
-
-ggplot_vln <- ggplot_vln + 
-  stat_compare_means(method = "kruskal.test", label.y = max(exp_data$expression) * 1.1) +
-  stat_compare_means(comparisons = list(c("WT", "R132H"), 
-                                        c("R132H", "R132H_Flc"),
-                                        c("WT", "R132H_Flc")),
-                     method = "wilcox.test",
-                     label = "p.signif")
-print(ggplot_vln)
-
 cgas_positive <- subset(scRNA_harmony, subset = Cgas > 0)
 vln_positive <- VlnPlot(cgas_positive, 
                         features = "Cgas",
@@ -390,7 +317,7 @@ vln_with_stats <- ggplot(positive_exp_data, aes(x = group, y = expression, fill 
   geom_violin(trim = TRUE, scale = "width", alpha = 0.7) +
   geom_boxplot(width = 0.2, fill = "white", alpha = 0.8, outlier.shape = NA) +
   geom_jitter(width = 0.1, size = 0.8, alpha = 0.3, color = "black") +
-  scale_fill_manual(values = c("#1f77b4", "#ff7f0e", "#2ca02c","#1f77b4", "#ff7f0e", "#2ca02c")) +
+  scale_fill_manual(values = c("#1f77b4", "#ff7f0e", "#2ca02c")) +
   labs(title = "Cgas Positive Cells Expression Distribution", 
        x = "Experimental Group", 
        y = "Expression Level") +
@@ -494,15 +421,6 @@ cellchat <- mergeCellChat(object.list, add.names = names(object.list))
 
 dev.new(width = 10, height = 8)
 p <- netVisual_heatmap(cellchat, color.use = color)
-plot(p)
-
-dev.new(width = 10, height = 8)
-p <- netVisual_heatmap(cellchat, 
-                       comparison = c("Control", "Model"),
-                       title.name = "Different number of interactions of MVC\nin scRNA-seq dataset",
-                       font.size = 16,
-                       font.size.title = 18) + 
-  ggtitle("ModvsCon")
 plot(p)
 
 #6.Cytotoxicity and exhaustion Score
@@ -678,22 +596,3 @@ print(kruskal_exhaustion)
 kruskal_cytotoxicity <- kruskal.test(cytotoxicity_score ~ group, data = score_data)
 print(kruskal_cytotoxicity)
 
-if(kruskal_exhaustion$p.value < 0.05) {
-  cat("\nPost-hoc test for exhaustion score (Dunn test):\n")
-  if(require(FSA)) {
-    dunn_exhaustion <- dunnTest(exhaustion_score ~ as.factor(group), data = score_data)
-    print(dunn_exhaustion)
-  } else {
-    cat("Please install FSA package for Dunn post-hoc test: install.packages('FSA')\n")
-  }
-}
-
-if(kruskal_cytotoxicity$p.value < 0.05) {
-  cat("\nPost-hoc test for cytotoxicity score (Dunn test):\n")
-  if(require(FSA)) {
-    dunn_cytotoxicity <- dunnTest(cytotoxicity_score ~ as.factor(group), data = score_data)
-    print(dunn_cytotoxicity)
-  } else {
-    cat("Please install FSA package for Dunn post-hoc test: install.packages('FSA')\n")
-  }
-}
